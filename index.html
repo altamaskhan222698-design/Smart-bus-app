@@ -3,65 +3,167 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Bus Announcer</title>
+    <title>Smart Transit System</title>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Roboto', sans-serif;
+            background-color: #121212; /* Dark Mode Background */
+            color: white;
             text-align: center;
-            background-color: #eef2f3;
             margin: 0;
+            padding: 0;
+        }
+
+        /* Top Header Bar */
+        .header {
+            background: linear-gradient(90deg, #004d40, #00695c);
             padding: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            border-bottom: 4px solid #ffab00;
         }
-        h1 { color: #d32f2f; }
+
+        /* Container */
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 10px;
+        }
+
+        /* Camera Box */
         #reader {
-            width: 300px;
-            margin: 0 auto;
-            border: 5px solid #333;
-            border-radius: 10px;
+            width: 100%;
+            border: 2px solid #00695c;
+            border-radius: 15px;
+            overflow: hidden;
             background-color: #000;
+            box-shadow: 0 0 20px rgba(0, 255, 200, 0.2);
         }
-        #status {
+
+        /* Digital Display Board (LED Look) */
+        .display-board {
+            background-color: #222;
+            border: 4px solid #444;
+            border-radius: 10px;
             margin-top: 20px;
+            padding: 20px;
+            text-align: left;
+            min-height: 120px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+            position: relative;
+        }
+
+        .bus-number {
+            font-size: 32px;
+            color: #ffab00; /* Amber LED color */
+            font-weight: bold;
+            text-transform: uppercase;
+            text-shadow: 0 0 10px #ffab00;
+        }
+
+        .route-info {
+            font-size: 18px;
+            color: #fff;
+            margin-top: 10px;
+            line-height: 1.5;
+        }
+
+        .status-tag {
+            background-color: #d32f2f;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+
+        .status-active {
+            background-color: #2e7d32; /* Green for Arrived */
+        }
+
+        /* Button */
+        .btn {
+            background: linear-gradient(45deg, #2196F3, #21CBF3);
+            border: none;
+            padding: 15px 40px;
+            color: white;
             font-size: 18px;
             font-weight: bold;
-            color: #00796b;
-            padding: 15px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        .btn {
-            background-color: #008CBA;
-            color: white;
-            padding: 15px 32px;
-            text-align: center;
-            font-size: 16px;
-            margin-top: 20px;
-            border: none;
-            border-radius: 5px;
+            border-radius: 50px;
             cursor: pointer;
-            box-shadow: 0 4px #999;
+            margin-top: 30px;
+            box-shadow: 0 5px 15px rgba(33, 150, 243, 0.4);
+            transition: transform 0.2s;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Error Message */
+        .error-msg {
+            color: #ff5252;
+            margin-top: 10px;
+            font-size: 14px;
+            display: none;
         }
     </style>
 </head>
 <body>
 
-    <h1>🚍 Smart Bus Station</h1>
-    <div id="reader"></div>
-    <div id="status">Waiting for Bus...</div>
-    <button class="btn" onclick="startScanner()">Camera On Karo</button>
+    <div class="header">🚏 SMART TRANSIT HUB</div>
+
+    <div class="container">
+        <div id="reader"></div>
+
+        <div class="display-board" id="displayBoard">
+            <span class="status-tag" id="statusTag">SYSTEM STANDBY</span>
+            <div id="boardContent" style="opacity: 0.5;">
+                <div class="bus-number">--</div>
+                <div class="route-info">Waiting for bus arrival...<br>Please scan QR code.</div>
+            </div>
+        </div>
+        
+        <div id="errorMsg" class="error-msg">⚠️ Unrecognized QR Code</div>
+
+        <button class="btn" onclick="startScanner()">SCANNER ON</button>
+    </div>
 
     <script>
-        // YAHAN AAP APNI MARZI SE STOPS AUR TIME BADAL SAKTE HAIN
+        // --- ADVANCED BUS DATABASE ---
         const busData = {
             "BUS_101": {
-                hindi: "कृपया ध्यान दें. बस नंबर 101 आ गयी है. यह मुंबई से दिल्ली जाएगी. यह रास्ते में सूरत, वडोदरा और जयपुर रुकेगी. यह आपको कल सुबह 10 बजे दिल्ली छोड़ेगी.",
-                english: "Attention please. Bus number 101 has arrived. It is going from Mumbai to Delhi. It will stop at Surat, Vadodara, and Jaipur. It will reach Delhi tomorrow at 10 AM."
+                id: "101",
+                type: "⚡ Intercity Express (AC)",
+                hindi: "डिंग डोंग... यात्रीगण कृपया ध्यान दें. बस नंबर 101, प्लेटफार्म पर आ गयी है. यह मुंबई से दिल्ली जाएगी. यह बस सूरत और जयपुर रुकेगी. धन्यवाद.",
+                english: "May I have your attention please. Bus number 101 has arrived. This is an AC Express bus going from Mumbai to Delhi. Thank you.",
+                route: "Mumbai ➝ Delhi",
+                stops: "Surat • Vadodara • Jaipur",
+                time: "Depart: 10:00 AM"
             },
             "BUS_102": {
-                hindi: "बस नंबर 102 आ गयी है. यह अंधेरी से बांद्रा जाएगी. यह बीच में जुहू और सांताक्रूज़ रुकेगी. यह 45 मिनट में बांद्रा पहुँचा देगी.",
-                english: "Bus number 102 has arrived. It is going from Andheri to Bandra. It will stop at Juhu and Santacruz. It will reach Bandra in 45 minutes."
+                id: "102",
+                type: "🚌 School Transport",
+                hindi: "डिंग डोंग... विद्यार्थीगण ध्यान दें. स्कूल बस नंबर 102 आ गयी है. यह बस स्कूल से घर के लिए रवाना होगी.",
+                english: "Attention students. School bus 102 has arrived. It will depart for home shortly.",
+                route: "School ➝ Home Drop",
+                stops: "Juhu • Bandra • Dadar",
+                time: "Depart: 02:00 PM"
+            },
+            "BUS_103": {
+                id: "103",
+                type: "🛌 Sleeper Coach",
+                hindi: "डिंग डोंग... कृपया ध्यान दें. स्लीपर बस नंबर 103 आ गयी है. यह पुणे से गोवा जाएगी.",
+                english: "Attention please. Sleeper bus 103 for Goa has arrived.",
+                route: "Pune ➝ Goa",
+                stops: "Lonavala • Panjim",
+                time: "Depart: 11:30 PM"
             }
         };
 
@@ -70,60 +172,101 @@
 
         function onScanSuccess(decodedText, decodedResult) {
             if (decodedText === lastScanned || isSpeaking) return;
-            
-            lastScanned = decodedText;
-            
+
+            // 1. Agar QR Sahi hai
             if (busData[decodedText]) {
-                // Screen par likha hua dikhana
-                document.getElementById('status').innerHTML = 
-                    "✅ <b>Bus Found!</b><br>" + 
-                    "Route: Mumbai ➝ Delhi<br>" + 
-                    "Stops: Surat, Jaipur<br>" + 
-                    "Time: 10:00 AM Drop";
+                lastScanned = decodedText;
+                showError(false); // Hide error
                 
+                // Update Display Board
+                updateDisplay(busData[decodedText]);
+
+                // Play Announcement
                 speakDual(busData[decodedText].hindi, busData[decodedText].english);
+            } 
+            // 2. Agar QR Galat hai
+            else {
+                showError(true);
+            }
+        }
+
+        function updateDisplay(bus) {
+            const board = document.getElementById('boardContent');
+            const tag = document.getElementById('statusTag');
+            
+            // UI Update
+            tag.innerText = "● BUS ARRIVED";
+            tag.classList.add('status-active');
+            
+            board.style.opacity = "1";
+            board.innerHTML = `
+                <div class="bus-number">BUS ${bus.id}</div>
+                <div style="font-size: 14px; color: #4fc3f7; margin-bottom:5px;">${bus.type}</div>
+                <div class="route-info">
+                    <b>Route:</b> ${bus.route}<br>
+                    <b>Stops:</b> ${bus.stops}<br>
+                    <b>Time:</b> ${bus.time}
+                </div>
+            `;
+        }
+
+        function showError(show) {
+            const err = document.getElementById('errorMsg');
+            if(show) {
+                err.style.display = "block";
+                err.innerText = "❌ Wrong QR Code. Try again.";
             } else {
-                document.getElementById('status').innerText = "Unknown Bus: " + decodedText;
-                speakDual("यह बस सिस्टम में नहीं है.", "This bus is not registered.");
+                err.style.display = "none";
             }
         }
 
         function onScanFailure(error) {
-            // Error ignore karein
+            // Console clean rakho
         }
 
         function startScanner() {
-            document.getElementById('status').innerText = "Scanning shuru ho rahi hai...";
+            document.getElementById('statusTag').innerText = "● SCANNING...";
+            document.getElementById('statusTag').style.backgroundColor = "#ff9800";
+            
             let html5QrcodeScanner = new Html5QrcodeScanner(
                 "reader", 
                 { fps: 10, qrbox: {width: 250, height: 250} },
-                /* verbose= */ false);
+                false);
             html5QrcodeScanner.render(onScanSuccess, onScanFailure);
         }
 
         function speakDual(hindiText, englishText) {
             isSpeaking = true;
+            
+            // Stop any previous sound
+            window.speechSynthesis.cancel();
 
+            // Setup Voices
             let msgHi = new SpeechSynthesisUtterance(hindiText);
             msgHi.lang = 'hi-IN'; 
-            msgHi.rate = 0.9;
-            
+            msgHi.rate = 0.85; 
+
             let msgEn = new SpeechSynthesisUtterance(englishText);
             msgEn.lang = 'en-IN'; 
-            msgEn.rate = 0.9;
+            msgEn.rate = 0.85;
+
+            // Chain Logic: Hindi -> English -> Reset
+            msgHi.onend = function() {
+                setTimeout(() => { window.speechSynthesis.speak(msgEn); }, 500);
+            };
 
             msgEn.onend = function() {
                 isSpeaking = false;
-                lastScanned = ""; 
-                document.getElementById('status').innerText = "Next Bus ka intezaar...";
+                lastScanned = ""; // Reset for next bus
+                document.getElementById('statusTag').innerText = "● READY FOR NEXT BUS";
+                document.getElementById('statusTag').style.backgroundColor = "#d32f2f";
+                document.getElementById('statusTag').classList.remove('status-active');
             };
 
-            window.speechSynthesis.cancel();
+            // Start Speaking
             window.speechSynthesis.speak(msgHi);
-            window.speechSynthesis.speak(msgEn);
         }
     </script>
 
 </body>
-      </html>
-      
+</html>
