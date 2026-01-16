@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Bus Announcer</title>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 { color: #d32f2f; }
+        #reader {
+            width: 300px;
+            margin: 0 auto;
+            border: 5px solid #333;
+            border-radius: 10px;
+            background-color: #000;
+        }
+        #status {
+            margin-top: 20px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #00796b;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+        }
+        .btn {
+            background-color: #008CBA;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            font-size: 16px;
+            margin-top: 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 4px #999;
+        }
+        .btn:active {
+            background-color: #005f7f;
+            box-shadow: 0 2px #666;
+            transform: translateY(2px);
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Bus Stop Scanner 🚌</h1>
+    <div id="reader"></div>
+    <div id="status">Waiting for Bus...</div>
+    <button class="btn" onclick="startScanner()">Camera Start Karo</button>
+
+    <script>
+        // Yahan Bus ki details Hindi aur English dono mein likhein
+        const busData = {
+            "BUS_101": {
+                hindi: "कृपया ध्यान दें. बस नंबर 101 आ गयी है. यह मुंबई से दिल्ली जाएगी.",
+                english: "Attention please. Bus number 101 has arrived. It is going from Mumbai to Delhi."
+            },
+            "BUS_102": {
+                hindi: "बस नंबर 102 आ गयी है. यह स्कूल से घर जाएगी.",
+                english: "Bus number 102 has arrived. It is going from School to Home."
+            }
+        };
+
+        let lastScanned = "";
+        let isSpeaking = false;
+
+        function onScanSuccess(decodedText, decodedResult) {
+            // Agar wahi code baar-baar scan ho raha hai ya abhi bol raha hai, to ruk jao
+            if (decodedText === lastScanned || isSpeaking) return;
+            
+            lastScanned = decodedText;
+            
+            // Check karein ki ye code list mein hai ya nahi
+            if (busData[decodedText]) {
+                document.getElementById('status').innerText = "Bus Found: " + decodedText;
+                
+                // Pehle Hindi, fir English bolega
+                speakDual(busData[decodedText].hindi, busData[decodedText].english);
+            } else {
+                document.getElementById('status').innerText = "Unknown Bus: " + decodedText;
+                speakDual("यह बस सिस्टम में नहीं है.", "This bus is not in the system.");
+            }
+        }
+
+        function onScanFailure(error) {
+            // Scanning fail hone par kuch mat karo
+        }
+
+        function startScanner() {
+            document.getElementById('status').innerText = "Scanning shuru ho rahi hai...";
+            
+            // Camera start karne ka code
+            let html5QrcodeScanner = new Html5QrcodeScanner(
+                "reader", 
+                { fps: 10, qrbox: {width: 250, height: 250} },
+                /* verbose= */ false);
+            html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+        }
+
+        function speakDual(hindiText, englishText) {
+            isSpeaking = true; // Flag set karein taki beech mein dusra scan na ho
+
+            // 1. Hindi Announcement
+            let msgHi = new SpeechSynthesisUtterance(hindiText);
+            msgHi.lang = 'hi-IN'; // Hindi awaaz
+            msgHi.rate = 0.9;
+            
+            // 2. English Announcement
+            let msgEn = new SpeechSynthesisUtterance(englishText);
+            msgEn.lang = 'en-IN'; // Indian English awaaz
+            msgEn.rate = 0.9;
+
+            // Jab English bolna khatam ho jaye, tab wapas scan allow karo
+            msgEn.onend = function() {
+                isSpeaking = false;
+                lastScanned = ""; // Reset taki wahi bus dobara scan ho sake agar zaroorat ho
+                document.getElementById('status').innerText = "Next Bus ka intezaar...";
+            };
+
+            // Queue mein lagao (Pehle Hindi bolega, fir English)
+            window.speechSynthesis.cancel(); // Purana kuch bol raha ho to chup karao
+            window.speechSynthesis.speak(msgHi);
+            window.speechSynthesis.speak(msgEn);
+        }
+    </script>
+
+</body>
+</html>
