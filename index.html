@@ -1,100 +1,249 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Bus Final</title>
+    <title>Station Master Pro</title>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+    
     <style>
-        body { font-family: sans-serif; text-align: center; background: #121212; color: white; padding: 20px; }
-        #reader { width: 300px; margin: 0 auto; border-radius: 15px; border: 2px solid #00ffcc; }
-        .display { background: #222; border: 2px solid #444; padding: 20px; margin-top: 20px; border-radius: 10px; }
-        .bus-no { font-size: 30px; color: #ffab00; font-weight: bold; }
-        .btn { background: #008CBA; color: white; padding: 10px 20px; border: none; border-radius: 5px; margin: 5px; cursor: pointer; }
-        #status-box { color: #00ffcc; margin-top: 10px; font-weight: bold; }
+        body {
+            background-color: #000;
+            color: white;
+            font-family: 'Segoe UI', sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Scroll band */
+        }
+
+        /* --- 1. SCANNING SCREEN (Normal Mode) --- */
+        #scan-screen {
+            padding: 20px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .header {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 24px;
+            color: #ffab00;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-bottom: 2px solid #333;
+            width: 100%;
+            padding-bottom: 10px;
+        }
+
+        #reader {
+            width: 100%;
+            max-width: 400px;
+            border: 4px solid #ffab00;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(255, 171, 0, 0.3);
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #d32f2f, #b71c1c);
+            color: white;
+            padding: 15px 40px;
+            font-size: 20px;
+            border: none;
+            border-radius: 50px;
+            margin-top: 30px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(255, 0, 0, 0.4);
+            font-weight: bold;
+        }
+
+        /* --- 2. FULL SCREEN BOARD (Magic Mode) --- */
+        #big-board {
+            display: none; /* Pehle chhupa rahega */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: black;
+            z-index: 9999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+            border: 10px solid #222;
+        }
+
+        .board-header {
+            font-family: 'Orbitron', sans-serif;
+            color: #00e676; /* Green */
+            font-size: 2vw; /* Responsive size */
+            margin-bottom: 20px;
+        }
+
+        .big-bus-no {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 15vw; /* Bahut Bada Text */
+            color: #ff3d00; /* Red Neon */
+            font-weight: 900;
+            text-shadow: 0 0 30px #ff3d00;
+            margin: 10px 0;
+        }
+
+        .big-route {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 5vw;
+            color: #ffeb3b; /* Yellow */
+            margin-top: 20px;
+            text-transform: uppercase;
+        }
+
+        .big-stops {
+            font-size: 3vw;
+            color: white;
+            margin-top: 20px;
+            opacity: 0.8;
+        }
+
+        /* Blinking Effect for "Departure" */
+        .blink { animation: blinker 1s linear infinite; color: red; margin-top: 30px; font-size: 3vw; font-weight: bold;}
+        @keyframes blinker { 50% { opacity: 0; } }
+
     </style>
 </head>
 <body>
 
-    <h1>🚏 SMART BUS STATION</h1>
-    
-    <div id="reader"></div>
-    
-    <div id="status-box">System Ready</div>
-
-    <div class="display" id="mainDisplay">
-        <div id="busNumber" class="bus-no">WAITING...</div>
-        <div id="routeInfo" style="margin-top:10px;">Scan a Bus QR Code</div>
+    <div id="scan-screen">
+        <div class="header">🚦 Smart Bus Control</div>
+        <div id="reader"></div>
+        <div id="status" style="color:#888; margin-top:10px;">Waiting for Bus...</div>
+        
+        <div style="margin-top:20px;">
+            <button class="btn" onclick="startScanner()">CAMERA ON</button>
+            <button class="btn" style="background:#0288d1; font-size:16px; padding:10px 20px;" onclick="testVoice()">Test Sound</button>
+        </div>
     </div>
 
-    <button class="btn" onclick="startScanner()">1. SCANNER ON</button>
-    <button class="btn" style="background:#4caf50;" onclick="testVoice()">2. TEST VOICE (Awaaz Check)</button>
+    <div id="big-board">
+        <div class="board-header">● NOW BOARDING ●</div>
+        <div id="showBusNo" class="big-bus-no">BUS 101</div>
+        <div id="showRoute" class="big-route">MUMBAI ➝ DELHI</div>
+        <div id="showStops" class="big-stops">Via: Surat, Jaipur</div>
+        <div class="blink">⚠ DEPARTING SOON ⚠</div>
+    </div>
 
     <script>
+        // --- 5 BUS DATA ---
         const busData = {
             "BUS_101": {
-                hindi: "यात्रीगण कृपया ध्यान दें. बस नंबर 101, मुंबई से दिल्ली के लिए आ गयी है.",
-                english: "Attention please. Bus number 101 for Delhi has arrived.",
-                route: "Mumbai to Delhi"
+                hindi: "डिंग डोंग... यात्रीगण कृपया ध्यान दें. बस नंबर 101, नागपुर से मुंबई के लिए प्लेटफार्म पर आ गयी है.",
+                english: "May I have your attention please. Bus number 101, Nagpur to Mumbai, has arrived.",
+                route: "NAGPUR ➝ MUMBAI",
+                stops: "Via: Amravati • Aurangabad"
             },
             "BUS_102": {
-                hindi: "यात्रीगण कृपया ध्यान दें. बस नंबर 102, स्कूल से घर के लिए आ गयी है.",
-                english: "Attention please. Bus number 102 for Home has arrived.",
-                route: "School to Home"
+                hindi: "यात्रीगण कृपया ध्यान दें. बस नंबर 102, मुंबई से दिल्ली के लिए आ गयी है.",
+                english: "Attention please. Bus number 102, Mumbai to Delhi, has arrived.",
+                route: "MUMBAI ➝ DELHI",
+                stops: "Via: Ahmedabad • Jaipur"
+            },
+            "BUS_103": {
+                hindi: "यात्रीगण कृपया ध्यान दें. बस नंबर 103, अहमदाबाद से लखनऊ जाने के लिए तैयार है.",
+                english: "Attention please. Bus number 103, Ahmedabad to Lucknow, is departing.",
+                route: "AHMEDABAD ➝ LUCKNOW",
+                stops: "Via: Bhopal • Kanpur"
+            },
+            "BUS_104": {
+                hindi: "यात्रीगण कृपया ध्यान दें. बस नंबर 104, दिल्ली से कोलकाता के लिए आ गयी है.",
+                english: "Attention please. Bus number 104, Delhi to Kolkata, has arrived.",
+                route: "DELHI ➝ KOLKATA",
+                stops: "Via: Agra • Varanasi"
+            },
+            "BUS_105": {
+                hindi: "यात्रीगण कृपया ध्यान दें. बस नंबर 105, पुणे से बैंगलोर के लिए आ गयी है.",
+                english: "Attention please. Bus number 105, Pune to Bangalore, has arrived.",
+                route: "PUNE ➝ BANGALORE",
+                stops: "Via: Kolhapur • Belgaum"
             }
         };
 
         let isSpeaking = false;
-        let html5QrcodeScanner;
+        let lastScanned = "";
 
         function onScanSuccess(decodedText) {
-            // Agar pehle se bol raha hai to ignore karein
-            if (isSpeaking) return;
+            if (isSpeaking || decodedText === lastScanned) return;
 
-            // Check karein ki QR data hamari list mein hai ya nahi
             if (busData[decodedText]) {
-                const data = busData[decodedText];
-                
-                // Screen update karein
-                document.getElementById('busNumber').innerText = "BUS " + decodedText.split('_')[1];
-                document.getElementById('routeInfo').innerText = data.route;
-                document.getElementById('status-box').innerText = "✅ Bus Found!";
+                lastScanned = decodedText;
+                const bus = busData[decodedText];
 
-                // Announcement karein
-                speakDual(data.hindi, data.english);
-            } else {
-                // Agar galat QR hai
-                document.getElementById('status-box').innerText = "❌ Unknown: " + decodedText;
+                // 1. SWITCH TO BIG SCREEN MODE
+                showBigBoard(decodedText, bus);
+
+                // 2. PLAY AUDIO
+                playAnnouncement(bus.hindi, bus.english);
             }
         }
 
-        function startScanner() {
-            html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
-            html5QrcodeScanner.render(onScanSuccess);
-            document.getElementById('status-box').innerText = "Scanning Start...";
+        function showBigBoard(code, bus) {
+            // Camera screen chupao
+            document.getElementById('scan-screen').style.display = 'none';
+            // Badi screen dikhao
+            const board = document.getElementById('big-board');
+            board.style.display = 'flex';
+            
+            // Data set karo
+            document.getElementById('showBusNo').innerText = "BUS " + code.split('_')[1];
+            document.getElementById('showRoute').innerText = bus.route;
+            document.getElementById('showStops').innerText = bus.stops;
         }
 
-        function speakDual(hi, en) {
+        function hideBigBoard() {
+            // Wapas Camera screen par aao
+            document.getElementById('big-board').style.display = 'none';
+            document.getElementById('scan-screen').style.display = 'flex';
+            document.getElementById('status').innerText = "Ready for Next Bus...";
+        }
+
+        function playAnnouncement(hi, en) {
             isSpeaking = true;
-            window.speechSynthesis.cancel(); // Purani awaaz band karein
+            window.speechSynthesis.cancel();
+
+            let chime = new SpeechSynthesisUtterance("Tring Tring");
+            chime.lang = 'hi-IN'; chime.rate = 1.2; chime.pitch = 1.4;
 
             let msgHi = new SpeechSynthesisUtterance(hi);
-            msgHi.lang = 'hi-IN';
-            
+            msgHi.lang = 'hi-IN'; msgHi.rate = 0.85;
+
             let msgEn = new SpeechSynthesisUtterance(en);
-            msgEn.lang = 'en-IN';
+            msgEn.lang = 'en-IN'; msgEn.rate = 0.85;
 
+            // Sequence: Chime -> Hindi -> English -> Back to Camera
+            chime.onend = () => { window.speechSynthesis.speak(msgHi); };
             msgHi.onend = () => { window.speechSynthesis.speak(msgEn); };
-            msgEn.onend = () => { isSpeaking = false; document.getElementById('status-box').innerText = "Ready for Next"; };
+            msgEn.onend = () => { 
+                isSpeaking = false; 
+                lastScanned = ""; 
+                setTimeout(hideBigBoard, 2000); // 2 second baad screen wapas normal hogi
+            };
 
-            window.speechSynthesis.speak(msgHi);
+            window.speechSynthesis.speak(chime);
+        }
+
+        function startScanner() {
+            const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+            scanner.render(onScanSuccess);
+            document.getElementById('status').innerText = "Scanning Active...";
         }
 
         function testVoice() {
-            let t = new SpeechSynthesisUtterance("Awaaz aa rahi hai");
-            t.lang = 'hi-IN';
-            window.speechSynthesis.speak(t);
-            alert("Agar awaaz aayi, to system sahi hai!");
+            let u = new SpeechSynthesisUtterance("Sound Check OK");
+            window.speechSynthesis.speak(u);
         }
     </script>
 </body>
