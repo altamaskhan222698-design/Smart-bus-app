@@ -7,9 +7,9 @@
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             text-align: center;
-            background-color: #f4f4f4;
+            background-color: #eef2f3;
             margin: 0;
             padding: 20px;
         }
@@ -23,12 +23,13 @@
         }
         #status {
             margin-top: 20px;
-            font-size: 20px;
+            font-size: 18px;
             font-weight: bold;
             color: #00796b;
-            padding: 10px;
+            padding: 15px;
             background: white;
-            border-radius: 5px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         .btn {
             background-color: #008CBA;
@@ -42,30 +43,25 @@
             cursor: pointer;
             box-shadow: 0 4px #999;
         }
-        .btn:active {
-            background-color: #005f7f;
-            box-shadow: 0 2px #666;
-            transform: translateY(2px);
-        }
     </style>
 </head>
 <body>
 
-    <h1>Bus Stop Scanner 🚌</h1>
+    <h1>🚍 Smart Bus Station</h1>
     <div id="reader"></div>
     <div id="status">Waiting for Bus...</div>
-    <button class="btn" onclick="startScanner()">Camera Start Karo</button>
+    <button class="btn" onclick="startScanner()">Camera On Karo</button>
 
     <script>
-        // Yahan Bus ki details Hindi aur English dono mein likhein
+        // YAHAN AAP APNI MARZI SE STOPS AUR TIME BADAL SAKTE HAIN
         const busData = {
             "BUS_101": {
-                hindi: "कृपया ध्यान दें. बस नंबर 101 आ गयी है. यह मुंबई से दिल्ली जाएगी.",
-                english: "Attention please. Bus number 101 has arrived. It is going from Mumbai to Delhi."
+                hindi: "कृपया ध्यान दें. बस नंबर 101 आ गयी है. यह मुंबई से दिल्ली जाएगी. यह रास्ते में सूरत, वडोदरा और जयपुर रुकेगी. यह आपको कल सुबह 10 बजे दिल्ली छोड़ेगी.",
+                english: "Attention please. Bus number 101 has arrived. It is going from Mumbai to Delhi. It will stop at Surat, Vadodara, and Jaipur. It will reach Delhi tomorrow at 10 AM."
             },
             "BUS_102": {
-                hindi: "बस नंबर 102 आ गयी है. यह स्कूल से घर जाएगी.",
-                english: "Bus number 102 has arrived. It is going from School to Home."
+                hindi: "बस नंबर 102 आ गयी है. यह अंधेरी से बांद्रा जाएगी. यह बीच में जुहू और सांताक्रूज़ रुकेगी. यह 45 मिनट में बांद्रा पहुँचा देगी.",
+                english: "Bus number 102 has arrived. It is going from Andheri to Bandra. It will stop at Juhu and Santacruz. It will reach Bandra in 45 minutes."
             }
         };
 
@@ -73,31 +69,31 @@
         let isSpeaking = false;
 
         function onScanSuccess(decodedText, decodedResult) {
-            // Agar wahi code baar-baar scan ho raha hai ya abhi bol raha hai, to ruk jao
             if (decodedText === lastScanned || isSpeaking) return;
             
             lastScanned = decodedText;
             
-            // Check karein ki ye code list mein hai ya nahi
             if (busData[decodedText]) {
-                document.getElementById('status').innerText = "Bus Found: " + decodedText;
+                // Screen par likha hua dikhana
+                document.getElementById('status').innerHTML = 
+                    "✅ <b>Bus Found!</b><br>" + 
+                    "Route: Mumbai ➝ Delhi<br>" + 
+                    "Stops: Surat, Jaipur<br>" + 
+                    "Time: 10:00 AM Drop";
                 
-                // Pehle Hindi, fir English bolega
                 speakDual(busData[decodedText].hindi, busData[decodedText].english);
             } else {
                 document.getElementById('status').innerText = "Unknown Bus: " + decodedText;
-                speakDual("यह बस सिस्टम में नहीं है.", "This bus is not in the system.");
+                speakDual("यह बस सिस्टम में नहीं है.", "This bus is not registered.");
             }
         }
 
         function onScanFailure(error) {
-            // Scanning fail hone par kuch mat karo
+            // Error ignore karein
         }
 
         function startScanner() {
             document.getElementById('status').innerText = "Scanning shuru ho rahi hai...";
-            
-            // Camera start karne ka code
             let html5QrcodeScanner = new Html5QrcodeScanner(
                 "reader", 
                 { fps: 10, qrbox: {width: 250, height: 250} },
@@ -106,27 +102,23 @@
         }
 
         function speakDual(hindiText, englishText) {
-            isSpeaking = true; // Flag set karein taki beech mein dusra scan na ho
+            isSpeaking = true;
 
-            // 1. Hindi Announcement
             let msgHi = new SpeechSynthesisUtterance(hindiText);
-            msgHi.lang = 'hi-IN'; // Hindi awaaz
+            msgHi.lang = 'hi-IN'; 
             msgHi.rate = 0.9;
             
-            // 2. English Announcement
             let msgEn = new SpeechSynthesisUtterance(englishText);
-            msgEn.lang = 'en-IN'; // Indian English awaaz
+            msgEn.lang = 'en-IN'; 
             msgEn.rate = 0.9;
 
-            // Jab English bolna khatam ho jaye, tab wapas scan allow karo
             msgEn.onend = function() {
                 isSpeaking = false;
-                lastScanned = ""; // Reset taki wahi bus dobara scan ho sake agar zaroorat ho
+                lastScanned = ""; 
                 document.getElementById('status').innerText = "Next Bus ka intezaar...";
             };
 
-            // Queue mein lagao (Pehle Hindi bolega, fir English)
-            window.speechSynthesis.cancel(); // Purana kuch bol raha ho to chup karao
+            window.speechSynthesis.cancel();
             window.speechSynthesis.speak(msgHi);
             window.speechSynthesis.speak(msgEn);
         }
